@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 #log_handler.setLevel(logging.DEBUG)
 #log.addHandler(log_handler)
 
-__version__ = '0.5.1b'
+__version__ = '0.6b'
 
 AUTHORIZATION_URI = u'https://www.facebook.com/dialog/oauth'
 TOKEN_URI         = u'https://graph.facebook.com/oauth/access_token'
@@ -109,12 +109,14 @@ class FacebookGraphAPI(object):
                 }
         return {}
 
-    def _to_utf8(self, val):
+    @staticmethod
+    def to_utf8(val):
         if isinstance(val, types.UnicodeType):
             return val.encode('utf-8')
         return val
 
-    def _encode_params(self, params):
+    @staticmethod
+    def encode_params(params):
         """params に含まれるユニコード文字列を utf-8 に変換します。
 
         @param params: 対象の dict
@@ -123,7 +125,7 @@ class FacebookGraphAPI(object):
         """
         results = {}
         for key, val in params.items():
-            results[self._to_utf8(key)] = self._to_utf8(val)
+            results[FacebookGraphAPI.to_utf8(key)] = FacebookGraphAPI.to_utf8(val)
         return results
 
     def send_post_request(self, uri, params=None, content_type=None):
@@ -145,10 +147,10 @@ class FacebookGraphAPI(object):
         return self._send_api_request(uri, params, 'DELETE')
 
     def _send_api_request(self, uri, params=None, http_method='GET', content_type=None,
-                          use_app_token=False, try_count=1):
+                          access_token=None, use_app_token=False, try_count=1):
         """
         @param uri: リクエスト URI
-        @type uri: str
+        @type uri: str, unicode
         @param params: リクエストパラメータ。
         @type params: dict または str
         @param http_method: リクエストの HTTP メソッドを示す文字列。'GET'、'POST'、'DELETE'。デフォルトは 'GET'
@@ -161,14 +163,18 @@ class FacebookGraphAPI(object):
         elif isinstance(params, types.DictType):
             # MultipartPostHandler は urlencode() を勝手にやってくれるので、
             # multipart 引数が指定されている場合は urlencode() しない。
-            params = self._encode_params(params)
+            params = self.encode_params(params)
             data = params if content_type == self.CONTENT_TYPE_MULTIPART else urlencode(params)
         else:
-            data = str(self._to_utf8(params))
+            data = str(self.to_utf8(params))
 
         http_method = http_method.upper()
 
-        uri += '?access_token=' + self.access_token
+        if not access_token:
+            uri += '?access_token=' + self.access_token
+        else:
+            uri += '?access_token=' + access_token
+
         if use_app_token:
             uri += '&app_access_token=' + self.app_token
 
@@ -176,7 +182,9 @@ class FacebookGraphAPI(object):
             req = self._build_request(uri, http_method)
             req.add_data(data)
         else: # GET or DELETE
-            req = self._build_request(uri + '&' + str(data), http_method)
+            if data:
+                uri += '&' + str(data)
+            req = self._build_request(uri, http_method)
         return self.send_request(req, content_type)
 
     def send_request(self, req, content_type=None):
@@ -228,6 +236,7 @@ class FacebookGraphAPI(object):
         return result['data']
 
     @property
+    @memoized
     def app_token(self):
         """
         アプリケーションアクセストークン(app access token)を取得します。
@@ -236,18 +245,7 @@ class FacebookGraphAPI(object):
         @return: アプリケーションアクセストークン
         @rtype: str
         """
-        params = {
-            'client_id'    : self._app_id,
-            'client_secret': self._app_secret,
-            'grant_type'   : 'client_credentials',
-            }
-
-        params = self._encode_params(params)
-        url = TOKEN_URI + '?' + urlencode(params)
-        res = urllib2.urlopen(url)
-        res = res.read()
-        data = parse_qs(res)
-        return data['access_token'][0]
+        return get_app_token(self._app_id, self._app_secret)
 
     @property
     def rest_api(self):
@@ -317,7 +315,7 @@ class FacebookGraphAPI(object):
         @return: 認可スコープのリスト
         @rtype: tuple
         """
-        uri = u'/me/permissions'
+        uri = self.BASE_URL + u'me/permissions'
         res = self.get(uri)
         data = json.loads(res)
         results = [ permission for permission, val in data['data'][0].items() if val == 1 ]
@@ -343,6 +341,26 @@ class FacebookGraphAPI(object):
             raise TypeError
 
 
+def get_app_token(app_id, app_secret):
+    """
+    アプリケーションアクセストークン(app access token)を取得します。
+    http://developers.facebook.com/docs/authentication/#applogin
+
+    @return: アプリケーションアクセストークン
+    @rtype: str
+    """
+    params = {
+        'client_id'    : app_id,
+        'client_secret': app_secret,
+        'grant_type'   : 'client_credentials',
+        }
+
+    params = FacebookGraphAPI.encode_params(params)
+    url = TOKEN_URI + '?' + urlencode(params)
+    res = urllib2.urlopen(url)
+    res = res.read()
+    data = parse_qs(res)
+    return data['access_token'][0]
 
 def get_auth_url(app_id, scopes, redirect_uri, state=None, display=None):
     """
