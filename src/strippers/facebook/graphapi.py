@@ -296,7 +296,7 @@ class FacebookGraphAPI(object):
         @type q: str, unicode
         @param latitude: 中心地の緯度
         @param longitude: 中心地の経度
-        @param distance: 中心地からの距離。単位が不明
+        @param distance: 中心地からの距離。単位はメートル
         @return: 検索結果の dict リスト
         @rtype: list
         """
