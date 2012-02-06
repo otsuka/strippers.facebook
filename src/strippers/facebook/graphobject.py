@@ -71,6 +71,12 @@ class FbGraphObject(dict):
             self.update(data)
             self.loaded = True
 
+    def __getattr__(self, item):
+        try:
+            return self[item]
+        except KeyError, e:
+            raise AttributeError, e.message
+
     def __getitem__(self, key):
         if key in self:
             return super(FbGraphObject, self).__getitem__(key)
@@ -89,6 +95,9 @@ class FbGraphObject(dict):
 
 
 class FbUser(FbGraphObject):
+    """
+    ユーザーオブジェクト
+    """
 
     def __init__(self, api, data, load=False):
         """
@@ -365,8 +374,8 @@ class FbUser(FbGraphObject):
         @param message: メッセージ
         @param link: リンク
         @param picture: picture?
-        @return: チェックイン ID
-        @rtype: unicode
+        @return: チェックインオブジェクト
+        @rtype: FbCheckin
         """
         if place is None or latitude is None or longitude is None:
             raise TypeError
@@ -390,7 +399,7 @@ class FbUser(FbGraphObject):
 
         res = self.api.send_post_request(uri, params)
         data = json.loads(res) # {u'id': u'10150583583804571'}
-        return data[u'id']
+        return FbCheckin(self.api, data)
 
     def apprequest(self, message, data=None):
         """
@@ -408,18 +417,16 @@ class FbUser(FbGraphObject):
 
 class FbPost(FbGraphObject):
     """
-    投稿クラス。
+    投稿オブジェクト
     """
-
     def __init__(self, api, data):
         FbGraphObject.__init__(self, api, data)
 
 
 class FbAlbum(FbGraphObject):
     """
-    アルバムクラス
+    アルバムオブジェクト
     """
-
     def __init__(self, api, data):
         FbGraphObject.__init__(self, api, data)
 
@@ -466,7 +473,9 @@ class FbAlbum(FbGraphObject):
 
 
 class FbPhoto(FbGraphObject):
-
+    """
+    写真オブジェクト
+    """
     def __init__(self, api, data):
         FbGraphObject.__init__(self, api, data)
 
@@ -494,4 +503,10 @@ class FbPhoto(FbGraphObject):
         else:
             raise FacebookGraphAPIError(u"写真へのタグ付けに失敗しました。[id='%s']" % self.id)
 
+class FbCheckin(FbGraphObject):
+    """
+    チェックインオブジェクト
+    """
+    def __init__(self, api, data):
+        FbGraphObject.__init__(self, api, data)
 
