@@ -249,6 +249,69 @@ class FacebookGraphAPI(object):
                 raise FacebookGraphAPIError(unicode(error_code) + u': ' + result['error_msg'])
         return result['data']
 
+    AVAILABLE_SEARCH_TYPES = (u'post', u'user', u'page', u'event', u'group', u'place', u'checkin')
+
+    def search(self, type, q=None, **kwargs):
+        """
+        Graph オブジェクトを検索します。
+
+        @todo: 結果のページング
+
+        @param type: Graph オブジェクトの種類。'post','user','page','event','group','place','checkin'のいずれか。
+        @type type: str, unicode
+        @param q: 検索キーワード
+        @type q: str, unicode
+        @param kwargs:
+        @return: 検索結果の dict リスト
+        @rtype: list
+        """
+        if type not in self.AVAILABLE_SEARCH_TYPES:
+            raise TypeError
+
+        uri = self.BASE_URL + u'/search'
+        params = {'type': type}
+        if q:
+            params['q'] = q
+        params.update(kwargs)
+        res = self.get(uri, params)
+        data = json.loads(res)
+        return data['data']
+
+    def search_place(self, q, latitude=None, longitude=None, distance=None):
+        """
+        場所を検索します。
+
+        結果は次のような dict のリストです。
+        {u'category': u'Train station',
+         u'id': u'204173452939599',
+         u'location': {u'city': u'Setagaya-ku',
+                       u'country': u'Japan',
+                       u'latitude': 35.633316264221001,
+                       u'longitude': 139.66127502838},
+         u'name': u'Komazawa-daigaku Station'}
+
+        @todo: 結果のページング
+
+        @param q: 検索キーワード
+        @type q: str, unicode
+        @param latitude: 中心地の緯度
+        @param longitude: 中心地の経度
+        @param distance: 中心地からの距離。単位が不明
+        @return: 検索結果の dict リスト
+        @rtype: list
+        """
+        if (latitude is None and longitude is not None) or (latitude is not None and longitude is None):
+            raise TypeError
+        if distance and (latitude is None or longitude is None):
+            raise TypeError
+
+        params = {}
+        if latitude and longitude:
+            params['center'] = unicode(latitude) + u',' + unicode(longitude)
+        if distance:
+            params['distance'] = distance
+        return self.search('place', q, **params)
+
     @property
     @memoized
     def app_token(self):
