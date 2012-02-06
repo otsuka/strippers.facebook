@@ -4,6 +4,8 @@ import types
 import urllib2
 from strippers.facebook.error import FacebookGraphAPIError
 from strippers.facebook.util import memoized
+from strippers.facebook.permission import PUBLISH_CHECKINS
+from strippers.facebook.error import InsufficientScopeError
 
 try:
     import json
@@ -349,6 +351,46 @@ class FbUser(FbGraphObject):
         @rtype: bool
         """
         return self.api.has_permission(permission)
+
+    def checkin(self, place, latitude, longitude, tags=(), message=None, link=None, picture=None):
+        """
+        指定された場所にチェックインします。
+
+        http://developers.facebook.com/docs/reference/api/user/#checkins
+
+        @param place: Place ID
+        @param latitude: 緯度
+        @param longitude: 経度
+        @param tags: 一緒にいる友達の ID リスト
+        @param message: メッセージ
+        @param link: リンク
+        @param picture: picture?
+        @return: チェックイン ID
+        @rtype: unicode
+        """
+        if place is None or latitude is None or longitude is None:
+            raise TypeError
+        if not self.has_permission(PUBLISH_CHECKINS):
+            raise InsufficientScopeError(PUBLISH_CHECKINS)
+
+        uri = self.uri + u'/checkins'
+        coordinates = { 'latitude': str(latitude), 'longitude': str(longitude) }
+        params = {
+            'place': str(place),
+            'coordinates': json.dumps(coordinates),
+        }
+        if len(tags) > 0:
+            params['tags'] = u','.join(tags)
+        if message:
+            params['message'] = message
+        if link:
+            params['link'] = link
+        if picture:
+            params['picture'] = picture
+
+        res = self.api.send_post_request(uri, params)
+        data = json.loads(res) # {u'id': u'10150583583804571'}
+        return data[u'id']
 
     def apprequest(self, message, data=None):
         """

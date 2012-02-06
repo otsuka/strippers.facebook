@@ -76,6 +76,17 @@ class FacebookGraphAPI(object):
         return self._access_token
 
     def _create_request(self, uri, http_method):
+        """
+        指定された HTTP メソッドの urllib2.Request インスタンスを返します。
+        DELETE、PUT メソッドの Request インスタンスを作成する目的を想定しています。
+
+        @param uri: URI
+        @type uri: str, unicode
+        @param http_method: HTTP メソッド。'GET', 'POST', 'DELETE', 'PUT' のいずれか
+        @type http_method: str, unicode
+        @return: Request インスタンス
+        @rtype: urllib2.Request
+        """
         if http_method not in ('GET', 'POST', 'DELETE', 'PUT'):
             raise TypeError('Invalid HTTP method.')
 
@@ -93,7 +104,10 @@ class FacebookGraphAPI(object):
         return req
 
     def _parse_error(self, e):
-        """API アクセスのエラーレスポンスから WWW-Authenticate ヘッダにセットされた情報を名前と値の dict 形式で返します。
+        """
+        API アクセスのエラーレスポンスから WWW-Authenticate ヘッダにセットされた情報を名前と値の dict 形式で返します。
+
+        @rtype: dict
         """
         headers = e.info()
         value = headers.getheader('WWW-Authenticate')
