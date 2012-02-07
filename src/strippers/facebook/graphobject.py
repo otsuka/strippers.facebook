@@ -21,17 +21,20 @@ log = logging.getLogger(__name__)
 
 class FbGraphObject(dict):
 
-    def __init__(self, api, data=None):
+    def __init__(self, api, data=None, by_fql=False):
         """
         @param api: FacebookGraphAPI インスタンス
         @type api: FacebookGraphAPI
         @param data: オブジェクトのフィールドデータ
         @type data: dict
+        @param by_fql: FQL クエリによった取得されたデータか否か
+        @type by_fql: bool
         """
         super(FbGraphObject, self).__init__(self)
 
         self.api = api
         self.loaded = False
+        self._by_fql = bool(by_fql)
         if data:
             if isinstance(data, types.DictType):
                 self.update(data)
@@ -69,15 +72,20 @@ class FbGraphObject(dict):
             res = self.api.get(self.uri)
             data = json.loads(res)
             self.update(data)
+            self._by_fql = False
             self.loaded = True
 
     def __getattr__(self, item):
         try:
             return self[item]
         except KeyError, e:
-            raise AttributeError, e.message
+            raise AttributeError, e.args[0]
 
     def __getitem__(self, key):
+        if self._by_fql and hasattr(self, '_GRAPH_TO_FQL_FIELD_MAPPINGS'):
+            mappings = getattr(self, '_GRAPH_TO_FQL_FIELD_MAPPINGS')
+            key = mappings.get(key, key)
+
         if key in self:
             return super(FbGraphObject, self).__getitem__(key)
         else:
@@ -99,7 +107,13 @@ class FbUser(FbGraphObject):
     ユーザーオブジェクト
     """
 
-    def __init__(self, api, data, load=False):
+    _GRAPH_TO_FQL_FIELD_MAPPINGS = {
+        u'id'      : u'uid',
+        u'gender'  : u'sex',
+        u'birthday': u'birthday_date',
+    }
+
+    def __init__(self, api, data, load=False, by_fql=False):
         """
         @param api: FacebookGraphAPI インスタンス
         @type api: FacebookGraphAPI
@@ -108,8 +122,10 @@ class FbUser(FbGraphObject):
         @param load: ユーザー属性を API から読み込む場合に True。
                      data パラメータに data['id'] としてユーザー ID が指定されている必要があります。
         @type load: bool
+        @param by_fql: FQL クエリによった取得されたデータか否か
+        @type by_fql: bool
         """
-        FbGraphObject.__init__(self, api, data)
+        FbGraphObject.__init__(self, api, data, by_fql=by_fql)
         if load:
             self.load()
 
@@ -119,9 +135,9 @@ class FbUser(FbGraphObject):
 
         @param size: 画像サイズ。'square', 'small', 'normal', 'large' のいずれかを指定します。
                      デフォルトは 'normal'
-        @type size: str
+        @type size: str, unicode
         @return: 指定されたサイズのプロフィール画像の URL
-        @rtype: str
+        @rtype: unicode
         """
         if size not in (u'square', u'small', u'normal', u'large'):
             raise TypeError
@@ -162,11 +178,7 @@ class FbUser(FbGraphObject):
         for user in users:
             # id フィールドをセット
             user['id'] = user['uid']
-            # GraphAPI では gender なので
-            if 'sex' in user and 'gender' not in user:
-                user['gender'] = user['sex']
-
-            results.append(FbUser(self.api, user))
+            results.append(FbUser(self.api, user, by_fql=True))
         return results
 
     def friends(self):
@@ -192,7 +204,7 @@ class FbUser(FbGraphObject):
         select_fields = ', '.join(fields)
         q = u"SELECT %s FROM profile WHERE id IN (SELECT uid2 FROM friend WHERE uid1 = me()) ORDER BY name" % select_fields
         users = self.api.fql_query(q)
-        return [ FbUser(self.api, user) for user in users['data'] ]
+        return [ FbUser(self.api, user, by_fql=True) for user in users['data'] ]
 
     @property
     def friend_count(self):
