@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 #log_handler.setLevel(logging.DEBUG)
 #log.addHandler(log_handler)
 
-__version__ = '0.6b'
+__version__ = '0.7b'
 
 AUTHORIZATION_URI = u'https://www.facebook.com/dialog/oauth'
 TOKEN_URI         = u'https://graph.facebook.com/oauth/access_token'
@@ -417,6 +417,27 @@ class FacebookGraphAPI(object):
         else:
             raise TypeError
 
+    def extend_access_token_expiration(self):
+        """
+        Client-side OAuth や署名リクエストから取得したアクセストークンの有効期限を延長します。
+
+        @return: 新しいアクセストークン
+        @rtype: str
+        """
+        params = {
+            'client_id'    : self._app_id,
+            'client_secret': self._app_secret,
+            'grant_type'   : 'fb_exchange_token',
+            'fb_exchange_token': self.access_token,
+            }
+        params = self.encode_params(params)
+        url = TOKEN_URI + '?' + urlencode(params)
+        res = urllib2.urlopen(url)
+        res = res.read()
+        data = parse_qs(res)
+        self._access_token = data['access_token'][0]
+        return self._access_token
+
 
 def get_app_token(app_id, app_secret):
     """
@@ -443,11 +464,15 @@ def get_auth_url(app_id, scopes, redirect_uri, state=None, display=None):
     """
     OAuth 認可ページ の URL を返します。
 
-    @param app_id:
-    @param scopes:
-    @param redirect_uri:
+    @param app_id: Facebook アプリの App ID
+    @type app_id: str, unicode
+    @param scopes: 認可を求めるパーミッションのリスト
+    @type scopes: list, tuple
+    @param redirect_uri: 認可後のリダイレクト先 URL
+    @type redirect_uri: str, unicode
     @param state:
-    @param display:
+    @param display: 認可ダイアログの表示方法。'page', 'popup', 'iframe', 'touch', 'wap' のいずれか。デフォルトは 'page'
+    @type display: str, unicode
     @return: OAuth 認可ページの URL
     @rtype: str
     """
@@ -469,10 +494,10 @@ def get_auth_url(app_id, scopes, redirect_uri, state=None, display=None):
 def initialze_by_auth_code(app_id, app_secret, auth_code, redirect_uri):
     """
 
-    @param app_id: アプリケーション ID
-    @type app_id: str
+    @param app_id: Facebook アプリの App ID
+    @type app_id: str, unicode
     @param app_secret: アプリケーションシークレット
-    @type app_secret: str
+    @type app_secret: str, unicode
     @param auth_code: Auth コード
     @type auth_code: str
     @param redirect_uri: リダイレクト URI
@@ -517,10 +542,10 @@ def initialize_by_cookie(app_id, app_secret, cookies):
     リクエストに含まれるクッキーから認可ユーザーのアクセストークンを取得し、
     FacebookGraphAPI オブジェクトを生成します。
 
-    @param app_id: アプリケーション ID
-    @type app_id: str
+    @param app_id: Facebook アプリの App ID
+    @type app_id: str, unicode
     @param app_secret: アプリケーションシークレット
-    @type app_secret: str
+    @type app_secret: str, unicode
     @param cookies: クッキー
     @type cookies: dict
     @return: FacebookGraphAPI インスタンス
