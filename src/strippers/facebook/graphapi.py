@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 #log_handler.setLevel(logging.DEBUG)
 #log.addHandler(log_handler)
 
-__version__ = '0.7b'
+__version__ = '0.7.1b'
 
 AUTHORIZATION_URI = u'https://www.facebook.com/dialog/oauth'
 TOKEN_URI         = u'https://graph.facebook.com/oauth/access_token'
