@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 #log_handler.setLevel(logging.DEBUG)
 #log.addHandler(log_handler)
 
-__version__ = '0.7.1b'
+__version__ = '0.7.3b'
 
 AUTHORIZATION_URI = u'https://www.facebook.com/dialog/oauth'
 TOKEN_URI         = u'https://graph.facebook.com/oauth/access_token'
@@ -376,7 +376,7 @@ class FacebookGraphAPI(object):
         if description:
             params['description'] = description
         if privacy:
-            params['privacy'] = privacy
+            params['privacy'] = json.dumps(privacy)
         if object_attachment:
             params['object_attachment'] = object_attachment
 

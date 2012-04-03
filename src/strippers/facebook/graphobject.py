@@ -373,7 +373,7 @@ class FbUser(FbGraphObject):
         """
         return self.api.has_permission(permission)
 
-    def checkin(self, place, latitude, longitude, tags=(), message=None, link=None, picture=None):
+    def checkin(self, place, latitude, longitude, tags=(), message=None, link=None, picture=None, privacy=None):
         """
         指定された場所にチェックインします。
 
@@ -386,6 +386,7 @@ class FbUser(FbGraphObject):
         @param message: メッセージ
         @param link: リンク
         @param picture: picture?
+        @param privacy:
         @return: チェックインオブジェクト
         @rtype: FbCheckin
         """
@@ -408,6 +409,8 @@ class FbUser(FbGraphObject):
             params['link'] = link
         if picture:
             params['picture'] = picture
+        if privacy:
+            params['privacy'] = json.dumps(privacy)
 
         res = self.api.send_post_request(uri, params)
         data = json.loads(res) # {u'id': u'10150583583804571'}
