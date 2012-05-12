@@ -71,7 +71,11 @@ class FbGraphObject(dict):
             log.debug(u'%sオブジェクトのデータをロードします。[%s]', self.__class__.__name__, self.uri)
             res = self.api.get(self.uri)
             data = json.loads(res)
-            self.update(data)
+            try:
+                self.update(data)
+            except Exception, e:
+                log.exception(u"Error at load(). [uri='%s', res='%s']", self.uri, res)
+                raise
             self._by_fql = False
             self.loaded = True
 
@@ -108,9 +112,9 @@ class FbUser(FbGraphObject):
     """
 
     _GRAPH_TO_FQL_FIELD_MAPPINGS = {
-        u'id'      : u'uid',
-        u'gender'  : u'sex',
-        u'birthday': u'birthday_date',
+        'id'      : 'uid',
+        'gender'  : 'sex',
+        'birthday': 'birthday_date',
     }
 
     def __init__(self, api, data, load=False, by_fql=False):
@@ -129,7 +133,7 @@ class FbUser(FbGraphObject):
         if load:
             self.load()
 
-    def picture(self, size=u'normal'):
+    def picture(self, size='normal'):
         """
         プロフィール画像の URL を返します。
 
@@ -139,9 +143,9 @@ class FbUser(FbGraphObject):
         @return: 指定されたサイズのプロフィール画像の URL
         @rtype: unicode
         """
-        if size not in (u'square', u'small', u'normal', u'large'):
+        if size not in ('square', 'small', 'normal', 'large'):
             raise TypeError
-        return self.uri + u'/picture?type=%s' % size
+        return self.uri + '/picture?type=%s' % size
 
     def friends_fql(self, fields=None):
         """
@@ -188,7 +192,7 @@ class FbUser(FbGraphObject):
         @return: ユーザーの友達の FbUser オブジェクトリスト
         @rtype: list
         """
-        url = self.uri + u'/friends'
+        url = self.uri + '/friends'
         res = self.api.get(url)
         data = json.loads(res)
         return [ FbUser(self.api, user) for user in data['data'] ]
@@ -200,7 +204,7 @@ class FbUser(FbGraphObject):
         @return: ユーザーの友達の FbUser オブジェクトリスト
         @rtype: list
         """
-        fields = [u'id', u'name', u'can_post', u'pic', u'pic_square', u'pic_small', u'pic_big', u'pic_crop', u'username']
+        fields = ['id', 'name', 'can_post', 'pic', 'pic_square', 'pic_small', 'pic_big', 'pic_crop', 'username']
         select_fields = ', '.join(fields)
         q = u"SELECT %s FROM profile WHERE id IN (SELECT uid2 FROM friend WHERE uid1 = me()) ORDER BY name" % select_fields
         users = self.api.fql_query(q)
@@ -214,7 +218,7 @@ class FbUser(FbGraphObject):
         @return: 友達数
         @rtype: int
         """
-        q = u'SELECT friend_count FROM user WHERE uid = %s' % self.id
+        q = 'SELECT friend_count FROM user WHERE uid = %s' % self.id
         res = self.api.fql_query(q)
         return res[0]['friend_count']
 
@@ -228,7 +232,7 @@ class FbUser(FbGraphObject):
         """
         if isinstance(friend, FbUser):
             friend = friend.id
-        url = self.uri + u'/mutualfriends/%s' % friend
+        url = self.uri + '/mutualfriends/%s' % friend
         res = self.api.get(url)
         data = json.loads(res)
         return [ FbUser(self.api, user) for user in data['data'] ]
@@ -237,7 +241,7 @@ class FbUser(FbGraphObject):
         """
         @todo: ページング
         """
-        uri = self.uri + u'/albums'
+        uri = self.uri + '/albums'
         params = { 'limit': 100 }
         res = self.api.get(uri, params)
         data = json.loads(res)
@@ -267,7 +271,7 @@ class FbUser(FbGraphObject):
             if not isinstance(privacy, types.DictType):
                 raise TypeError
             params['privacy'] = json.dumps(privacy)
-        uri = self.uri + u'/albums'
+        uri = self.uri + '/albums'
         res = self.api.send_post_request(uri, params)
         data = json.loads(res)
         return FbAlbum(self.api, data)
@@ -285,7 +289,7 @@ class FbUser(FbGraphObject):
         @return: アップロードした写真の FbPhoto オブジェクト。id のみセットされています。
         @rtype: FbPhoto
         """
-        uri = self.uri + u'/photos'
+        uri = self.uri + '/photos'
         params = { 'source': source }
         if message:
             params['message'] = message
@@ -310,7 +314,7 @@ class FbUser(FbGraphObject):
         @return: FbPost オブジェクトのジェネレーター
         @rtype: generator
         """
-        uri = self.uri + u'/posts'
+        uri = self.uri + '/posts'
         params = { 'limit': fetch, 'offset': offset, }
         if since: params['since'] = int(since)
         if until: params['until'] = int(until)
@@ -350,7 +354,7 @@ class FbUser(FbGraphObject):
         @return: post ID
         @rtype: unicode
         """
-        uid = u'me'
+        uid = 'me'
         return self.api.post(uid, message, link, picture, name, caption, description, actions, privacy, object_attachment)
 
     @memoized
@@ -395,7 +399,7 @@ class FbUser(FbGraphObject):
         if not self.has_permission(PUBLISH_CHECKINS):
             raise InsufficientScopeError(PUBLISH_CHECKINS)
 
-        uri = self.uri + u'/checkins'
+        uri = self.uri + '/checkins'
         coordinates = { 'latitude': str(latitude), 'longitude': str(longitude) }
         params = {
             'place': str(place),
@@ -420,7 +424,7 @@ class FbUser(FbGraphObject):
         """
         @todo: 戻り値どうする？
         """
-        url = self.uri + u'/apprequests'
+        url = self.uri + '/apprequests'
         params = { 'message': message }
         if data:
             params['data'] = data
@@ -446,7 +450,7 @@ class FbAlbum(FbGraphObject):
         FbGraphObject.__init__(self, api, data)
 
     def photos(self, limit=25, offset=0):
-        uri = self.uri + u'/photos'
+        uri = self.uri + '/photos'
         params = { 'limit': limit, 'offset': offset }
         res = self.api.get(uri, params)
         data = json.loads(res)
@@ -478,7 +482,7 @@ class FbAlbum(FbGraphObject):
         @return: アップロードした写真の FbPhoto オブジェクト。id のみセットされています。
         @rtype: FbPhoto
         """
-        uri = self.uri + u'/photos'
+        uri = self.uri + '/photos'
         params = { 'source': source }
         if message:
             params['message'] = message
@@ -506,7 +510,7 @@ class FbPhoto(FbGraphObject):
         @return: タグ付けに成功したら自身の FbPhoto オブジェクトを返します。メソッドチェーンでタグ付けできるようにするため
         @rtype: FbPhoto
         """
-        uri = self.uri + u'/tags'
+        uri = self.uri + '/tags'
         params = { 'to': to }
         if x:
             params['x'] = float(x)

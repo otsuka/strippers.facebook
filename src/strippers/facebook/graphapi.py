@@ -9,7 +9,7 @@ import re
 import logging
 import gzip
 from datetime import datetime, timedelta
-import MultipartPostHandler
+from strippers.facebook import MultipartPostHandler
 from strippers.facebook.error import InvalidAuthCodeError, InvalidTokenError, FacebookGraphAPIError, ExpiredTokenError, InsufficientScopeError, InvalidRequestError
 from strippers.facebook.graphobject import FbUser, FbPost
 from strippers.facebook.rest import RestAPI
@@ -36,17 +36,17 @@ log = logging.getLogger(__name__)
 #log_handler.setLevel(logging.DEBUG)
 #log.addHandler(log_handler)
 
-__version__ = '0.7.3b'
+__version__ = '0.8b'
 
-AUTHORIZATION_URI = u'https://www.facebook.com/dialog/oauth'
-TOKEN_URI         = u'https://graph.facebook.com/oauth/access_token'
+AUTHORIZATION_URI = 'https://www.facebook.com/dialog/oauth'
+TOKEN_URI         = 'https://graph.facebook.com/oauth/access_token'
 
 class FacebookGraphAPI(object):
 
-    CONTENT_TYPE_MULTIPART = u'multipart/form-data'
-    CONTENT_TYPE_JSON      = u'application/json; charset=utf-8'
+    CONTENT_TYPE_MULTIPART = 'multipart/form-data'
+    CONTENT_TYPE_JSON      = 'application/json; charset=utf-8'
 
-    BASE_URL = u'https://graph.facebook.com/'
+    BASE_URL = 'https://graph.facebook.com/'
 
     def __init__(self, access_token, app_id=None, app_secret=None, enable_gzip=False):
         """
@@ -97,6 +97,7 @@ class FacebookGraphAPI(object):
         return MethodCustomRequest(uri)
 
     def _build_request(self, uri, http_method=None):
+        uri = self.to_utf8(uri)
         if http_method in (None, 'GET', 'POST'):
             req = urllib2.Request(uri)
         else:
@@ -180,7 +181,7 @@ class FacebookGraphAPI(object):
             params = self.encode_params(params)
             data = params if content_type == self.CONTENT_TYPE_MULTIPART else urlencode(params)
         else:
-            data = str(self.to_utf8(params))
+            data = self.to_utf8(params)
 
         http_method = http_method.upper()
 
@@ -207,6 +208,7 @@ class FacebookGraphAPI(object):
 
         if content_type is not None:
             if content_type == self.CONTENT_TYPE_MULTIPART:
+                log.debug(u"MultipartPostHandlerを使用します。")
                 opener = urllib2.build_opener(MultipartPostHandler.MultipartPostHandler)
             else:
                 opener = urllib2.build_opener()
@@ -392,7 +394,7 @@ class FacebookGraphAPI(object):
         @return: 認可スコープのリスト
         @rtype: tuple
         """
-        uri = self.BASE_URL + u'me/permissions'
+        uri = self.BASE_URL + 'me/permissions'
         res = self.get(uri)
         data = json.loads(res)
         results = [ permission for permission, val in data['data'][0].items() if val == 1 ]
